@@ -39,19 +39,20 @@ function setMap(){
 	function callback(data){
 	  csvData = data[0];
 	  wi = data[1];
-      console.log(csvData);
+      //console.log(csvData);
       //console.log(wi);
 	  
-	  var wiCounties = topojson.feature(wi,wi.objects.cb_2015_wisconsin_county_20m);
+	  var wiCounties = topojson.feature(wi,wi.objects.cb_2015_wisconsin_county_20m).features;
 	  
 	  join_csv(csvData,wiCounties);
 	  
 	  //console.log(wiCounties);
 	  
-	  var counties = map.append("path")
-        .datum(wiCounties)
-        .attr("class", "counties")
-        .attr("d", path);
+	  var counties = map.selectAll(".counties")
+	  		.enter()
+	  		.append("path")
+	  			.attr("class", "counties")
+	  			.attr("d", path);
 		
     //create the color scale
       var colorScale = makeColorScale(csvData);
@@ -70,8 +71,8 @@ function setMap(){
 			var csvKey = csvRegion["GEO.id2"];
 			//console.log(csvRegion["GEO.display-label"]);
 			
-			for( var j = 0; j < wiCounties.features.length; j++){
-				var props = wiCounties.features[j].properties;
+			for( var j = 0; j < wiCounties.length; j++){
+				var props = wiCounties[j].properties;
 				var key = props.GEOID;
 				
 				//console.log(props.NAME)
@@ -91,9 +92,10 @@ function setMap(){
 		//add wi counties to map
 		var count = 1;
 		//console.log(wiCounties);
+		//console.log(wiCounties)
 		
 		var counties = map.selectAll(".counties")
-        .data(wiCounties.features)
+        .data(wiCounties)
         .enter()
         .append("path")
         .attr("class", function(d){
