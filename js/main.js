@@ -124,6 +124,9 @@ function setMap(){
 			count++;
             return "counties " + d.properties.GEOID;
         })
+		.attr("id", function(d){
+            return d["GEO.id2"];
+        })
         .attr("d", path)
 		.style("fill", function(d){
             var val = d.properties[expressed];
@@ -283,11 +286,19 @@ function setMap(){
 	//function to highlight enumeration units and bars
 	function highlight(properties){
 		//change stroke
-		var selected = d3.selectAll("." + properties["GEOID"])
-        .style("stroke", "blue")
-        .style("stroke-width", "2");
+		if(properties["GEO.id2"]){
+			console.log("bar");
+			var selected = d3.selectAll("#" + properties["GEO.id2"])
+				.style("stroke", "blue")
+				.style("stroke-width", "2");
+		}else{
+			console.log("county");
+			var selected = d3.selectAll("#" + properties["GEOID"])
+				.style("stroke", "blue")
+				.style("stroke-width", "2");
+		}
 		
-		console.log(properties["GEOID"])
+		console.log(properties);
 	};
 
 	//function to create coordinated bar chart
@@ -315,15 +326,15 @@ function setMap(){
             return b[expressed]-a[expressed]
         })
         .attr("class", function(d){
+			//console.log(d);
             return "bars " + d["GEO.id2"];
         })
+		.attr("id", function(d){
+            return d["GEO.id2"];
+        })
         .attr("width", chartInnerWidth / csvData.length - 1)
-		.on("mouseover", function(d){
-            highlight(d);
-        });
-
-
-		
+		.on("mouseover", highlight);
+				
 	updateChart(bars, csvData.length, colorScale);
 		
 	//create a text element for the chart title
