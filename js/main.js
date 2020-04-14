@@ -1,7 +1,26 @@
 (function(){
 	
-var attrArray = ["HC01_EST_VC01","HC02_EST_VC01","HC03_EST_VC01","HC01_EST_VC03","HC01_EST_VC04","HC01_EST_VC05","HC01_EST_VC06","HC01_EST_VC07","HC01_EST_VC08","HC01_EST_VC09","HC01_EST_VC10","HC01_EST_VC11","HC01_EST_VC12","HC01_EST_VC13","HC01_EST_VC14","HC01_EST_VC15","HC01_EST_VC16","HC01_EST_VC17","HC01_EST_VC18","HC01_EST_VC19","HC01_EST_VC20"]
+var attrArray = ["Total Population","Age under 5","Age 5-9 years","Age 10-14 years","Age 15-19 years","Age 20-24 years","Age 25-29 years","Age 30-34 years","Age 35-39 years","Age 40-44 years","Age 45-49 years","Age 50-54 years","Age 55-59 years","Age 60-64 years","Age 65-69 years","Age 70-74 years","Age 75-79 years","Age 80-84 years","Age 85 and over"]
 var expressed = attrArray[0];
+
+//chart frame dimensions
+var chartWidth = window.innerWidth * 0.575,
+	chartHeight = 473
+	leftPadding = 50,
+    rightPadding = 2,
+    topBottomPadding = 5,
+    chartInnerWidth = chartWidth - leftPadding - rightPadding,
+    chartInnerHeight = chartHeight - topBottomPadding * 2,
+    translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
+    
+//create a scale to size bars proportionally to frame
+var yScale1 = d3.scaleLinear()
+    .range([0, chartInnerHeight])
+    .domain([1000000, 0]);
+	
+var yScale2 = d3.scaleLinear()
+	.range([0,chartInnerHeight])
+	.domain([15,0]);
 
 //begin script when window loads
 window.onload = setMap();
@@ -62,6 +81,8 @@ function setMap(){
 	  
 	  //add coordinated visualization to the map
       setChart(csvData.slice(1), colorScale);
+	  
+	  createDropdown();
     };
 	
 	function join_csv(csvData,wiCounties){		
@@ -108,7 +129,10 @@ function setMap(){
             var val = d.properties[expressed];
             if(val){ return colorScale(d.properties[expressed] );
             }else{ return "#EEE";}
-		});
+		})
+		.on("mouseover", function(d){
+            highlight(d.properties);
+        });
 	}
 	
 	
@@ -121,6 +145,8 @@ function setMap(){
         "#f03b20",
         "#bd0026"
 		];
+		
+		console.log(expressed);
 
 		//create color scale generator
 		var colorScale = d3.scaleThreshold()
@@ -148,25 +174,124 @@ function setMap(){
 
 		return colorScale;
 	};
-};
 
-//function to create coordinated bar chart
-function setChart(csvData, colorScale){
-    //chart frame dimensions
-    var chartWidth = window.innerWidth * 0.575,
-		chartHeight = 473
-		leftPadding = 50,
-        rightPadding = 2,
-        topBottomPadding = 5,
-        chartInnerWidth = chartWidth - leftPadding - rightPadding,
-        chartInnerHeight = chartHeight - topBottomPadding * 2,
-        translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
-    
+	function createDropdown(){
+		//add select element
+		var dropdown = d3.select("body")
+			.append("select")
+			.attr("class", "dropdown")
+			.on("change", function(){
+				changeAttribute(this.value, csvData)
+			});
+
+		//add initial option
+		var titleOption = dropdown.append("option")
+			.attr("class", "titleOption")
+			.attr("disabled", "true")
+			.text("Select Attribute");
+
+		//add attribute name options
+		var attrOptions = dropdown.selectAll("attrOptions")
+			.data(attrArray)
+			.enter()
+			.append("option")
+			.attr("value", function(d){ return d })
+			.text(function(d){ return d });
+	};
+
+	//dropdown change listener handler
+	function changeAttribute(attribute, csvData){
+    //change the expressed attribute
+		expressed = attribute;
+		console.log(expressed);
+
+    //recreate the color scale
+		var colorScale = makeColorScale(csvData);
+
+    //recolor enumeration units
+		var regions = d3.selectAll(".counties")
+			.transition()
+			.duration(1000)
+			.style("fill", function(d){
+				var value = d.properties[expressed];
+				if(value) {
+					return colorScale(value);
+				} else {
+					return "#ccc";
+				}
+		});
+	
+	 var bars = d3.selectAll(".bars")
+        //re-sort bars
+        .sort(function(a, b){
+            return b[expressed] - a[expressed];
+        })
+		.transition() //add animation
+        .delay(function(d, i){
+            return i * 20
+        })
+        .duration(500);
 		
-	//create a scale to size bars proportionally to frame
-    var yScale = d3.scaleLinear()
-        .range([0, chartInnerHeight])
-        .domain([1000000, 0]);
+	 updateChart(bars, csvData.length, colorScale);
+    };
+	
+	function updateChart(bars, n, colorScale){
+		console.log("update chart");
+		//position bars
+		bars.attr("x", function(d, i){
+            return i * (chartInnerWidth / csvData.length) + leftPadding;
+        })
+        .attr("height", function(d){
+			//console.log(d[expressed]);
+			//console.log(yScale(parseFloat(d[expressed])));
+			if(expressed == "Total Population"){
+				return chartInnerHeight - yScale1(parseFloat(d[expressed]));
+			}else{
+				return chartInnerHeight - yScale2(parseFloat(d[expressed]));
+			}
+        })
+        .attr("y", function(d){
+			if(expressed == "Total Population"){
+				return yScale1(parseFloat(d[expressed])) + topBottomPadding;
+			}else{
+				return yScale2(parseFloat(d[expressed])) + topBottomPadding;
+			}
+        })
+		//Example 2.5 line 23...end of bars block
+        .style("fill", function(d){
+            return colorScale(d[expressed]);
+        });
+		
+		//create vertical axis generator
+		if(expressed == "Total Population"){
+			var yAxis = d3.axisLeft()
+				.scale(yScale1);
+			d3.selectAll(".axis")
+				.call(yAxis);
+			var chartTitle = d3.select(".chartTitle")
+			    .text("" + expressed + " per county");
+		}else{
+			var yAxis = d3.axisLeft()
+				.scale(yScale2);
+			d3.selectAll(".axis")
+				.call(yAxis);
+			var chartTitle = d3.select(".chartTitle")
+			    .text("Percentage " + expressed + " per county");
+		}
+    };
+	
+	//function to highlight enumeration units and bars
+	function highlight(properties){
+		//change stroke
+		var selected = d3.selectAll("." + properties["GEOID"])
+        .style("stroke", "blue")
+        .style("stroke-width", "2");
+		
+		console.log(properties["GEOID"])
+	};
+
+	//function to create coordinated bar chart
+	function setChart(csvData, colorScale){
 
     //create a second svg element to hold the bar chart
     var chart = d3.select("body")
@@ -193,32 +318,29 @@ function setChart(csvData, colorScale){
             return "bars " + d["GEO.id2"];
         })
         .attr("width", chartInnerWidth / csvData.length - 1)
-        .attr("x", function(d, i){
-            return i * (chartInnerWidth / csvData.length) + leftPadding;
-        })
-        .attr("height", function(d){
-			//console.log(d[expressed]);
-			//console.log(yScale(parseFloat(d[expressed])));
-            return chartInnerHeight - yScale(parseFloat(d[expressed]));
-        })
-        .attr("y", function(d){
-            return yScale(parseFloat(d[expressed])) + topBottomPadding;
-        })
-		//Example 2.5 line 23...end of bars block
-        .style("fill", function(d){
-            return colorScale(d[expressed]);
+		.on("mouseover", function(d){
+            highlight(d);
         });
+
+
+		
+	updateChart(bars, csvData.length, colorScale);
 		
 	//create a text element for the chart title
     var chartTitle = chart.append("text")
         .attr("x", 120)
         .attr("y", 80)
         .attr("class", "chartTitle")
-        .text("Population per County");
+        .text("Total Population per County");
 		
 	//create vertical axis generator
-    var yAxis = d3.axisLeft()
-        .scale(yScale);
+	if(expressed == "Total Population"){
+		var yAxis = d3.axisLeft()
+			.scale(yScale1);
+	}else{
+		var yAxis = d3.axisLeft()
+			.scale(yScale2);
+	}
 
     //place axis
     var axis = chart.append("g")
@@ -232,6 +354,8 @@ function setChart(csvData, colorScale){
         .attr("width", chartInnerWidth)
         .attr("height", chartInnerHeight)
         .attr("transform", translate);
+	};
+
 };
 
 })();
