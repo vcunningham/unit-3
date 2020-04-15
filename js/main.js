@@ -92,6 +92,10 @@ function setMap(){
       setChart(csvData.slice(1), colorScale);
 	  
 	  createDropdown();
+	  
+	  d3.select("body")
+		.append("div")
+		.html("<p>Data was taken from the American Fact Finder census data. Total population is not normalized to provide a base for the percentages per age group available via the drop down.</p>");
     };
 	
 	function join_csv(csvData,wiCounties){		
